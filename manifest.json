@@ -1,0 +1,22 @@
+{
+    "posts": [
+        {
+            "slug": "why-minimalism",
+            "title": "Why I Chose Minimalism",
+            "date": "2025-02-28",
+            "excerpt": "The web has become bloated. Trackers, popups, cookie banners. I wanted a space that loads instantly."
+        },
+        {
+            "slug": "beauty-of-plain-text",
+            "title": "The Beauty of Plain Text",
+            "date": "2025-02-15",
+            "excerpt": "There's something honest about plain text. No hidden formatting. No proprietary formats."
+        },
+        {
+            "slug": "digital-gardens",
+            "title": "Digital Gardens vs Blogs",
+            "date": "2025-01-30",
+            "excerpt": "Blogs are chronological. Gardens are topological. I'm trying to build something in between."
+        }
+    ]
+}
