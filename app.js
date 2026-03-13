@@ -17,6 +17,30 @@ const App = {
                 this.handleRoute();
             }
         });
+
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => this.toggleTheme());
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+    },
+
+    toggleTheme() {
+        const body = document.body;
+        const isDark = body.classList.contains('dark-theme');
+        if (isDark) {
+            body.classList.remove('dark-theme');
+            localStorage.setItem('theme', 'light');
+        } else {
+            body.classList.add('dark-theme');
+            localStorage.setItem('theme', 'dark');
+        }
     },
 
     async handleRoute() {
