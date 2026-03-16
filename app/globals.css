@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Plain blue links, typical sharif.io style */
+  a:not(.no-underline) {
+    @apply text-blue-700 underline decoration-blue-300 underline-offset-4 hover:decoration-blue-700 dark:text-blue-400 dark:decoration-blue-800 dark:hover:decoration-blue-400 transition-colors duration-200;
+  }
+}
