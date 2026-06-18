@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lifeline — Design Document</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+    --border: #30363d;
+    --surface: #161b22;
+    --code: #21262d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.7;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 { color: var(--accent); font-size: 2.2rem; border-bottom: 2px solid var(--accent); padding-bottom: .5rem; }
+  h2 { color: var(--accent2); font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { color: var(--warn); font-size: 1.15rem; margin-top: 2rem; }
+  h4 { color: var(--fg); font-size: 1rem; margin-top: 1.5rem; }
+  code, pre {
+    background: var(--code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+    font-size: .88rem;
+  }
+  code { padding: .15rem .4rem; }
+  pre { padding: 1rem; overflow-x: auto; }
+  pre code { background: none; border: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid var(--border); padding: .6rem .8rem; text-align: left; }
+  th { background: var(--surface); color: var(--accent); }
+  tr:nth-child(even) { background: var(--surface); }
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .callout-warn { border-left-color: var(--warn); }
+  .callout-danger { border-left-color: var(--danger); }
+  .callout-good { border-left-color: var(--accent2); }
+  .toc { background: var(--surface); padding: 1.2rem; border-radius: 8px; margin: 1.5rem 0; }
+  .toc ul { margin: .5rem 0; padding-left: 1.2rem; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  .mermaid {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-family: monospace;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--fg);
+  }
+  .score { font-weight: 700; color: var(--accent2); }
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<h1>🆘 Lifeline — Design Document</h1>
+<p><strong>Version:</strong> 1.0 (Locked) &nbsp;|&nbsp; <strong>Date:</strong> 2026-06-18 &nbsp;|&nbsp; <strong>Track:</strong> Slack Agent for Good</p>
+
+<div class="callout callout-good">
+  <strong>Mission:</strong> Transform Slack from a noisy chat room into a high-precision, real-time command center for NGOs, crisis hotlines, and disaster relief teams — collapsing 45 minutes of frantic spreadsheet cross-referencing into 4 seconds of autonomous constraint matching.
+</div>
+
+<div class="toc">
+  <strong>Table of Contents</strong>
+  <ul>
+    <li><a href="#1-prd">1. Product Requirements (PRD)</a></li>
+    <li><a href="#2-arch">2. System Architecture</a></li>
+  </ul>
+</div>
+
+<hr>
+
+<h2 id="1-prd">1. Product Requirements (PRD)</h2>
+
+<h3>1.1 Vision</h3>
+<p>Lifeline takes the ultra-sophisticated, high-speed incident response architecture used by FAANG engineering teams and repurposes it to solve the most critical problem in the non-profit sector: <strong>resource dispatch</strong>. It proves that agentic workflows don't just save developer hours — they save lives.</p>
+
+<p>By autonomously matching urgent human needs (reported in Slack) with real-time inventory, volunteer locations, and shelter capacities (via MCP), Lifeline transforms the "NGO Context Tax" from a 45-minute administrative nightmare into a 4-second dispatch decision.</p>
+
+<h3>1.2 Problem</h3>
+
+<h4>The NGO Context Tax</h4>
+<p>Social impact organizations run their operations on Slack. But their data lives in a chaotic web of Google Sheets, Airtable databases, and legacy CRMs. When a frontline volunteer posts in <code>#urgent-intake</code>:</p>
+
+<blockquote>"Client needs emergency housing tonight. Has a service dog, requires wheelchair access."</blockquote>
+
+<p>The dispatcher spends <strong>45 minutes</strong> frantically checking four different spreadsheets and making phone calls. Meanwhile, the vulnerable person waits.</p>
+
+<h4>Time Is Literally Trauma</h4>
+<p>Every minute of administrative friction is a minute of uncertainty for someone in crisis. Current solutions are either:</p>
+<ul>
+  <li><strong>Expensive and rigid</strong> — legacy NGO tech requires six-month procurement cycles</li>
+  <li><strong>Technically weak</strong> — off-the-shelf Slack bots can't query complex, multi-variable database constraints dynamically</li>
+  <li><strong>Human-bottlenecked</strong> — dispatchers burn out fighting databases instead of helping humans</li>
+</ul>
+
+<h4>Volunteer Burnout</h4>
+<p>The number one cause of churn in social impact is administrative friction. Volunteers want to help humans, not fight databases. When a volunteer spends 45 minutes on hold or cross-referencing spreadsheets for a single placement, they don't return next week.</p>
+
+<h3>1.3 The Idea</h3>
+
+<p>Lifeline is a highly tuned agent built for the <strong>Slack Agent for Good</strong> track. It leverages the "Holy Trinity" of hackathon technologies — <strong>RTS API</strong>, <strong>MCP Server Integration</strong>, and <strong>Slack AI</strong> — to execute a flawless, life-saving workflow.</p>
+
+<h4>The Frontline Workflow</h4>
+
+<table>
+  <tr><th>Step</th><th>Technology</th><th>What Happens</th></tr>
+  <tr>
+    <td><strong>1. Trigger</strong></td>
+    <td>RTS API</td>
+    <td>A volunteer drops a complex constraint request into <code>#intake</code>. Lifeline is summoned via a message action. It ingests the exact parameters of the crisis — wheelchair-accessible, pet-friendly, immediate capacity, proximity to Zone A.</td>
+  </tr>
+  <tr>
+    <td><strong>2. The Lifeline Matrix</strong></td>
+    <td>MCP (Parallel)</td>
+    <td>Lifeline executes parallel, read-only queries across the NGO's disjointed systems:
+      <ul>
+        <li><strong>Shelter Roster MCP</strong>: Filter for Capacity > 0, Wheelchair = True, Pet = True</li>
+        <li><strong>Transport Roster MCP</strong>: Find available volunteer drivers with vans in Zone A</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>3. Synthesis</strong></td>
+    <td>Slack AI</td>
+    <td>Lifeline's LLM synthesizes the database hits into natural language: <em>"Match found: Hope Shelter has 1 bed. Volunteer Dave is 5 miles away with a van."</em></td>
+  </tr>
+  <tr>
+    <td><strong>4. Dispatch Card</strong></td>
+    <td>Block Kit</td>
+    <td>A mobile-optimized Action Card drops into the thread: exact match, confidence level, and an actionable button: <em>"Draft Dispatch Text to Dave & Hope Shelter."</em></td>
+  </tr>
+  <tr>
+    <td><strong>5. Human Approval</strong></td>
+    <td>Slack User Token</td>
+    <td>The dispatcher reviews the AI's logic and clicks <strong>Approve</strong>. The AI is an exoskeleton for the volunteer, not an unsupervised decision-maker.</td>
+  </tr>
+</table>
+
+<h3>1.4 Status Quo Analysis</h3>
+
+<table>
+  <tr><th>Dimension</th><th>Current State</th><th>Lifeline State</th></tr>
+  <tr><td><strong>Dispatch time</strong></td><td>45 minutes of spreadsheet cross-referencing + phone calls</td><td>4 seconds of autonomous constraint matching</td></tr>
+  <tr><td><strong>Data sources</strong></td><td>4+ disconnected systems (Sheets, Airtable, phone lists, whiteboards)</td><td>Unified query layer via MCP — one Slack thread, all systems</td></tr>
+  <tr><td><strong>Volunteer experience</strong></td><td>Administrative friction → burnout → churn</td><td>Help humans faster → satisfaction → retention</td></tr>
+  <tr><td><strong>Error rate</strong></td><td>Human fatigue causes missed constraints (e.g., forgetting pet policy)</td><td>Deterministic filtering — constraints are code, not memory</td></tr>
+  <tr><td><strong>Scalability</strong></td><td>One dispatcher can handle ~10 cases/hour</td><td>One dispatcher can handle ~100 cases/hour</td></tr>
+  <tr><td><strong>Cost</strong></td><td>$50K+/year for legacy NGO dispatch software</td><td>Free via Slack Marketplace + open-source MCP servers</td></tr>
+</table>
+
+<h3>1.5 Impact & Scale</h3>
+
+<h4>Immediate Impact (0–6 months)</h4>
+<ul>
+  <li><strong>Dispatch velocity</strong>: 10x increase in cases handled per volunteer hour</li>
+  <li><strong>Volunteer retention</strong>: 40% reduction in administrative-friction-related churn</li>
+  <li><strong>Error elimination</strong>: Zero missed constraint matches (wheelchair access, pet policy, capacity) through deterministic filtering</li>
+  <li><strong>Cost accessibility</strong>: Mid-sized shelters ($0 software budget) gain FAANG-grade dispatch infrastructure</li>
+</ul>
+
+<h4>Medium-Term Impact (6–18 months)</h4>
+<ul>
+  <li><strong>The No-Code MCP Flywheel</strong>: By open-sourcing generic Google Sheets and Airtable MCP servers, Lifeline gives NGOs the pipes to connect any data to AI — not just shelter rosters, but food bank inventory, medical supply chains, evacuation route capacities</li>
+  <li><strong>Cross-NGO coordination</strong>: Regional networks of shelters share real-time capacity via MCP, preventing overflow at one location while beds sit empty 10 miles away</li>
+  <li><strong>Disaster response</strong>: During hurricanes, wildfires, or refugee crises, Lifeline scales from shelter dispatch to multi-agency resource coordination</li>
+</ul>
+
+<h4>Long-Term Impact (2–5 years)</h4>
+<ul>
+  <li><strong>Standardizing NGO ChatOps</strong>: Lifeline becomes the default operational OS for shelters, food banks, crisis centers, and disaster relief teams worldwide</li>
+  <li><strong>From reactive to predictive</strong>: Historical dispatch patterns + weather APIs + census data → proactive resource pre-positioning before crises peak</li>
+  <li><strong>Global health applications</strong>: The constraint-matching architecture ports to hospital bed management, vaccine distribution, and emergency medicine triage</li>
+</ul>
+
+<h4>Second-Order Effects</h4>
+<div class="callout callout-good">
+  By reducing administrative friction, NGOs see higher volunteer retention rates, indirectly multiplying their workforce. A 40% retention improvement doesn't just save recruitment costs — it means 40% more human hours available for direct service.
+</div>
+
+<hr>
+
+<h2 id="2-arch">2. System Architecture</h2>
+
+<h3>2.1 High-Level Architecture</h3>
+
+<div class="mermaid">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SLACK WORKSPACE (NGO)                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────────┐   │
+│  │ #intake      │  │ Thread       │  │ #lifeline-logs                   │   │
+│  │ (trigger)    │  │ (dispatch    │  │ (audit + post-mortem)            │   │
+│  │              │  │  card)       │  │                                  │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────────────────────────────────┘   │
+└─────────┼─────────────────┼─────────────────────────────────────────────────┘
+          │                 │
+          │  message_shortcut: "summon_lifeline"
+          │                 │
+          ▼                 │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    LIFELINE BOLT APP (Vercel)                               │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  EVENT HANDLER: shortcut("summon_lifeline")                          │   │
+│  │  ├── ack()                                                           │   │
+│  │  ├── setStatus("Matching resources...")                              │   │
+│  │  ├── startStream(task_display_mode: "plan")                          │   │
+│  │  └── ROUTER: invokeDispatch(channel, thread_ts)                      │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                              │                                              │
+│  ┌───────────────────────────┼──────────────────────────────────────────┐   │
+│  │        ORCHESTRATION LAYER                                           │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐   │   │
+│  │  │ Context     │  │ Lifeline    │  │ Dispatch Manager            │   │   │
+│  │  │ Ingestor    │→ │ Matrix      │→ │ (Block Kit + Approval)      │   │   │
+│  │  │ (RTS API)   │  │ (scoring)   │  │                             │   │   │
+│  │  └──────┬──────┘  └─────────────┘  └─────────────────────────────┘   │   │
+│  │         │                                                            │   │
+│  │  ┌──────┴────────────────────────────────────────────────────────┐   │   │
+│  │  │ MCP CLIENT (parallel Promise.all) — READ-ONLY                 │   │   │
+│  │  │ ┌─────────────────┐  ┌─────────────────┐                      │   │   │
+│  │  │ │ Shelter Roster  │  │ Transport Roster  │                    │   │   │
+│  │  │ │ (Airtable MCP)  │  │ (Sheets MCP)      │                    │   │   │
+│  │  │ │ Capacity > 0    │  │ Zone A available  │                    │   │   │
+│  │  │ │ Wheelchair = T  │  │ Van = T           │                    │   │   │
+│  │  │ │ Pet = T         │  │ Driver on-call    │                    │   │   │
+│  │  │ └─────────────────┘  └─────────────────┘                      │   │   │
+│  │  └───────────────────────────────────────────────────────────────┘   │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+│                              │                                              │
+│  ┌───────────────────────────┼──────────────────────────────────────────┐   │
+│  │        AUDIT & TRANSPARENCY LAYER                                    │   │
+│  │  ├── appendStream(task updates)                                      │   │
+│  │  ├── stopStream(final dispatch card)                                 │   │
+│  │  └── logToChannel(#lifeline-logs, structured audit)                  │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+          │
+          │  LLM calls (OpenRouter / gpt-oss-120b:free)
+          ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    EXTERNAL SERVICES                                      │
+│  ┌──────────────┐  ┌───────────────────────────────────────────────────┐  │
+│  │ OpenRouter   │  │ MCP Servers                                       │  │
+│  │ (summarize,  │  │ ┌─────────────────┐  ┌─────────────────────────┐  │  │
+│  │  draft gen)  │  │ │ Airtable MCP    │  │ Google Sheets MCP       │  │  │
+│  └──────────────┘  │ │ (official)      │  │ (community-standard)    │  │  │
+│                    │ │ OAuth / PAT     │  │ OAuth / Service Account │  │  │
+│                    │ └─────────────────┘  └─────────────────────────┘  │  │
+│                    └───────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>2.2 Component Breakdown</h3>
+
+<table>
+  <tr><th>Component</th><th>Responsibility</th><th>Key Principles</th></tr>
+  <tr>
+    <td><strong>Event Router</strong></td>
+    <td>Handles Slack events: message shortcuts, block actions, app mentions. Routes to orchestration layer.</td>
+    <td>Single entry point. No background monitoring. On-demand activation only.</td>
+  </tr>
+  <tr>
+    <td><strong>Context Ingestor</strong></td>
+    <td>Fetches last 50 messages via RTS API (or <code>conversations.history</code> fallback). Extracts constraint parameters via Slack AI.</td>
+    <td>Strict 50-message cap. Prevents token exhaustion. Summarizes before tool calls.</td>
+  </tr>
+  <tr>
+    <td><strong>MCP Client</strong></td>
+    <td>Parallel execution of registered MCP servers. Timeout: 3s per call. Read-only enforcement.</td>
+    <td>Promise.all for speed. Graceful degradation if one server times out. Zero write permissions.</td>
+  </tr>
+  <tr>
+    <td><strong>Lifeline Matrix</strong></td>
+    <td>Deterministic constraint matching. Maps colloquial intake language to structured database queries.</td>
+    <td>No LLM in the matching path. Deterministic = auditable = safe for life-critical decisions.</td>
+  </tr>
+  <tr>
+    <td><strong>Dispatch Manager</strong></td>
+    <td>Block Kit Action Card generation. Human approval flow. User-token execution for dispatch messages.</td>
+    <td>Mobile-first vertical stacking. Draft, don't execute. Double-opt-in for high-stakes actions.</td>
+  </tr>
+  <tr>
+    <td><strong>Audit Logger</strong></td>
+    <td>Structured logging to <code>#lifeline-logs</code>. Every invocation, every query, every approval.</td>
+    <td>100% transparency. GDPR-compliant. Source of truth for compliance and training.</td>
+  </tr>
+</table>
+
+<h3>2.3 Data Flows</h3>
+
+<h4>Flow A: Successful Match (Golden Path)</h4>
+<pre><code>Volunteer posts in #intake:
+  "Client needs emergency housing tonight. Wheelchair, service dog, Zone A."
+
+  → User clicks "Summon Lifeline" message shortcut
+    → ack()
+    → setStatus("Matching resources...")
+    → startStream(task_display_mode: "plan")
+
+    [TASK: "Parse intake request"]
+      → RTS API: last 50 messages of thread
+      → Slack AI: extract constraints {housing, wheelchair, pet, zone_a}
+
+    [TASK: "Query Shelter Roster"]
+      → MCP → Airtable: filter(Capacity > 0, Wheelchair = true, Pet = true)
+      → Result: Hope Shelter, 1 bed, 3.2 miles from Zone A
+
+    [TASK: "Query Transport Roster"]
+      → MCP → Sheets: filter(Zone = "A", Available = true, Vehicle = "van")
+      → Result: Dave, 5 miles away, ETA 12 min
+
+    [TASK: "Synthesize match"]
+      → Slack AI: format natural language summary
+      → "Match found: Hope Shelter has 1 bed. Volunteer Dave is 5 miles 
+         away with a van. ETA: 12 minutes."
+
+    [TASK: "Render dispatch card"]
+      → Block Kit Action Card drops in thread
+      → Header: Match summary
+      → Section: Shelter details + Transport details
+      → Actions: "Draft Dispatch to Dave & Hope Shelter"
+
+    → stopStream(text: "Match found. Awaiting approval.")
+    → logToChannel(#lifeline-logs, full audit)
+</code></pre>
+
+<h4>Flow B: No Match Found (Graceful Degradation)</h4>
+<pre><code>Same trigger, but Shelter Roster returns zero matches
+
+  → Lifeline Matrix detects zero_capacity = true
+  → Block Kit degrades to "No Match" card:
+      - Header: "⚠️ No exact match found"
+      - Section: "0 shelters meet all constraints. Closest partial matches:"
+      - List: 3 shelters that meet 2/3 constraints (with missing constraint highlighted)
+      - Actions: "Expand search radius", "Override constraints", "Escalate to supervisor"
+  → Dispatcher retains full agency. No unsupervised decisions.
+</code></pre>
+
+<h4>Flow C: Human Approval & Dispatch</h4>
+<pre><code>Dispatcher clicks "Draft Dispatch to Dave & Hope Shelter"
+
+  → block_actions handler: action_id = "draft_dispatch"
+  → ack()
+  → LLM generates draft messages:
+      - To Dave (SMS/Slack): "Urgent pickup needed: Zone A, wheelchair + service dog. 
+        Client at [location]. Reply CONFIRM to accept."
+      - To Hope Shelter: "Incoming referral: 1 bed reserved. Client arrives via 
+        volunteer transport. Wheelchair accessible, pet-friendly."
+  → views.open(modal: { draft_dave, draft_shelter, "Preview", "Edit", "Send" })
+  → Dispatcher clicks "Send"
+  → Execute via dispatcher's Slack User Token (NOT bot token)
+  → Messages sent as the human, not the AI
+  → Log: {action: "dispatch_sent", actor: @dispatcher, recipients: ["Dave", "Hope Shelter"], timestamp}
+</code></pre>
+
+<h3>2.4 Security & Trust Model</h3>
+
+<table>
+  <tr><th>Principle</th><th>Implementation</th><th>Why It Matters for NGOs</th></tr>
+  <tr>
+    <td><strong>Read/Write Separation</strong></td>
+    <td>MCP servers are <strong>read-only</strong> for all inventory queries. Dispatch messages execute via the <strong>human dispatcher's Slack User Token</strong>, not the bot.</td>
+    <td>The AI researches. The human decides. No unsupervised contact with vulnerable clients.</td>
+  </tr>
+  <tr>
+    <td><strong>Deterministic Matching</strong></td>
+    <td>The Lifeline Matrix uses structured filtering (Capacity > 0, Wheelchair = true), not LLM reasoning, to find matches.</td>
+    <td>Eliminates hallucination risk for life-critical resource allocation. If the database says no beds, the AI cannot invent one.</td>
+  </tr>
+  <tr>
+    <td><strong>Double Opt-In</strong></td>
+    <td>High-stakes actions (dispatch) require: (1) button click to draft, (2) modal review, (3) conscious "Send" confirmation.</td>
+    <td>Prevents accidental dispatches on mobile devices. Respects the dispatcher's judgment.</td>
+  </tr>
+  <tr>
+    <td><strong>100% Audit Logging</strong></td>
+    <td>Every invocation appends structured data to <code>#lifeline-logs</code>: RTS payload, MCP queries, LLM prompt, match results, human approvals.</td>
+    <td>NGOs operate under grant compliance and donor transparency requirements. Audit logs are non-negotiable.</td>
+  </tr>
+  <tr>
+    <td><strong>Least-Privilege Scopes</strong></td>
+    <td>Bot: <code>chat:write</code>, <code>channels:read</code>, <code>commands</code>, <code>assistant:write</code>. User: <code>chat:write</code> (for approved dispatches only).</td>
+    <td>Slack Marketplace non-negotiable. Minimizes blast radius if credentials are compromised.</td>
+  </tr>
+</table>
+
+<h3>2.5 Error Handling & Fallbacks</h3>
+
+<table>
+  <tr><th>Failure Mode</th><th>Fallback Behavior</th><th>User Experience</th></tr>
+  <tr>
+    <td>Airtable MCP timeout (>3s)</td>
+    <td>Return partial data from Sheets MCP. Flag missing shelter data. Suggest manual check.</td>
+    <td>"⚠️ Shelter roster temporarily unavailable. Transport match found. Please verify capacity manually."</td>
+  </tr>
+  <tr>
+    <td>LLM rate limit (OpenRouter free tier)</td>
+    <td>Return raw MCP JSON in plain-text format. Flag as "unformatted."</td>
+    <td>"⚠️ AI formatting temporarily unavailable. Raw match data below."</td>
+  </tr>
+  <tr>
+    <td>No matches across all MCP servers</td>
+    <td>Present 3 closest partial matches with missing constraints highlighted. Offer escalation path.</td>
+    <td>"No exact match. Closest options: [Shelter A] — no pet policy. [Shelter B] — no wheelchair access."</td>
+  </tr>
+  <tr>
+    <td>Block Kit validation fails</td>
+    <td>Send plain-text fallback + retry button.</td>
+    <td>"I could not format that response safely. Try again."</td>
+  </tr>
+  <tr>
+    <td>Dispatcher lacks User Token scope</td>
+    <td>Show modal: "Connect your account to send dispatches." OAuth re-prompt.</td>
+    <td>One-click re-auth. No admin intervention required.</td>
+  </tr>
+</table>
+
+<h3>2.6 MCP Server Architecture</h3>
+
+<h4>Airtable MCP (Shelter Roster)</h4>
+<p><strong>Source:</strong> Official Airtable MCP server (<code>https://mcp.airtable.com/mcp</code>) with OAuth and PAT authentication citeweb_search:14#3.</p>
+
+<pre><code>Query Shape:
+{
+  "base_id": "appShelterRoster",
+  "table": "Capacity",
+  "filter": {
+    "Capacity": { ">": 0 },
+    "Wheelchair_Accessible": true,
+    "Pet_Friendly": true,
+    "Zone": "A"
+  },
+  "sort": [{ "field": "Distance_Miles", "direction": "asc" }],
+  "max_records": 5
+}
+
+Response Shape:
+{
+  "matches": [
+    {
+      "shelter_name": "Hope Shelter",
+      "capacity_remaining": 1,
+      "wheelchair_accessible": true,
+      "pet_friendly": true,
+      "zone": "A",
+      "distance_miles": 3.2,
+      "contact": "+1-555-HOPE",
+      "last_updated": "2026-06-18T13:00:00Z"
+    }
+  ],
+  "total_matches": 1,
+  "partial_matches": 0
+}
+</code></pre>
+
+<h4>Google Sheets MCP (Transport Roster)</h4>
+<p><strong>Source:</strong> Community-standard Google Sheets MCP server with service account or OAuth authentication.</p>
+
+<pre><code>Query Shape:
+{
+  "spreadsheet_id": "1a2b3c4d...",
+  "sheet": "Volunteers",
+  "filter": {
+    "Zone": "A",
+    "Available_Now": true,
+    "Vehicle_Type": "van",
+    "Wheelchair_Accessible": true
+  },
+  "sort": [{ "field": "Distance_Miles", "direction": "asc" }],
+  "max_records": 3
+}
+
+Response Shape:
+{
+  "matches": [
+    {
+      "volunteer_name": "Dave",
+      "phone": "+1-555-DAVE",
+      "vehicle": "van",
+      "wheelchair_accessible": true,
+      "zone": "A",
+      "distance_miles": 5.0,
+      "eta_minutes": 12,
+      "last_check_in": "2026-06-18T12:45:00Z"
+    }
+  ],
+  "total_matches": 1
+}
+</code></pre>
+
+<h3>2.7 Block Kit Schema: Dispatch Action Card</h3>
+
+<pre><code>[
+  {
+    "type": "header",
+    "text": { "type": "plain_text", "text": "🆘 Match Found: Emergency Housing", "emoji": true }
+  },
+  { "type": "divider" },
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "*AI Summary*\nMatch found for wheelchair-accessible, pet-friendly housing in Zone A."
+    }
+  },
+  { "type": "divider" },
+  {
+    "type": "section",
+    "fields": [
+      { "type": "mrkdwn", "text": "🏠 *Shelter*\nHope Shelter\n1 bed remaining\n3.2 miles away" },
+      { "type": "mrkdwn", "text": "🚐 *Transport*\nDave (volunteer)\nVan, wheelchair lift\nETA 12 min" },
+      { "type": "mrkdwn", "text": "♿ *Accessibility*\nWheelchair ramp\nPet-friendly room" },
+      { "type": "mrkdwn", "text": "✅ *Confidence*\nHigh (100% match)\nData: 2 min ago" }
+    ]
+  },
+  { "type": "divider" },
+  {
+    "type": "actions",
+    "elements": [
+      {
+        "type": "button",
+        "text": { "type": "plain_text", "text": "✉️ Draft Dispatch", "emoji": true },
+        "action_id": "draft_dispatch",
+        "style": "primary",
+        "value": "match_hope_dave_001"
+      },
+      {
+        "type": "button",
+        "text": { "type": "plain_text", "text": "📋 View Audit Log", "emoji": true },
+        "action_id": "view_audit_log",
+        "value": "inv_ll_001"
+      }
+    ]
+  },
+  {
+    "type": "context",
+    "elements": [
+      { "type": "mrkdwn", "text": "⏱️ Matched in 3.8s • &lt;#C123|#lifeline-logs&gt;" }
+    ]
+  }
+]
+</code></pre>
+
+<h3>2.8 Streaming & Task Cards</h3>
+
+<p>Lifeline uses Slack's native streaming API to show progress during the 4-second match window:</p>
+
+<pre><code>1. setStatus("Matching resources...")
+2. startStream(task_display_mode: "plan")
+3. appendStream(chunks: [
+     { type: 'task', id: 'parse', text: 'Parse intake request', status: 'in_progress' },
+     { type: 'task', id: 'shelter', text: 'Query Shelter Roster', status: 'pending' },
+     { type: 'task', id: 'transport', text: 'Query Transport Roster', status: 'pending' }
+   ])
+4. [Shelter query completes]
+   appendStream(chunks: [
+     { type: 'task', id: 'parse', text: 'Parse intake request', status: 'complete' },
+     { type: 'task', id: 'shelter', text: 'Query Shelter Roster', status: 'in_progress' }
+   ])
+5. [Transport query completes]
+   appendStream(chunks: [
+     { type: 'task', id: 'shelter', text: 'Query Shelter Roster', status: 'complete' },
+     { type: 'task', id: 'transport', text: 'Query Transport Roster', status: 'in_progress' }
+   ])
+6. [Synthesis complete]
+   appendStream(chunks: [
+     { type: 'task', id: 'transport', text: 'Query Transport Roster', status: 'complete' },
+     { type: 'task', id: 'synthesize', text: 'Synthesize match', status: 'complete' }
+   ])
+7. stopStream(text: "Match found. Awaiting approval.", blocks: dispatchCard)
+</code></pre>
+
+<div class="callout callout-warn">
+  <strong>Demo Note:</strong> For the hackathon video, all MCP responses are pre-cached to guarantee sub-2-second execution. The streaming task cards are rendered from cached data. This simulation is explicitly disclosed in README.md for judging transparency.
+</div>
+
+<h3>2.9 Deployment & Marketplace Path</h3>
+
+<table>
+  <tr><th>Phase</th><th>Milestone</th><th>Timeline</th></tr>
+  <tr><td><strong>Scaffold</strong></td><td>Slack CLI + Bolt JS + Vercel</td><td>Day 1</td></tr>
+  <tr><td><strong>MCP Integration</strong></td><td>Airtable OAuth + Sheets service account</td><td>Days 2–3</td></tr>
+  <tr><td><strong>Core Flow</strong></td><td>Golden path: trigger → match → card → approval</td><td>Days 4–7</td></tr>
+  <tr><td><strong>Mobile QA</strong></td><td>Physical iOS/Android Block Kit testing</td><td>Days 8–9</td></tr>
+  <tr><td><strong>Demo Video</strong></td><td>Split-screen: 45 min spreadsheet hell vs. 4 sec Lifeline</td><td>Days 10–12</td></tr>
+  <tr><td><strong>Submission</strong></td><td>Slack Marketplace listing + Devpost</td><td>Day 13–14</td></tr>
+</table>
+
+<h4>Slack Marketplace Readiness</h4>
+<ul>
+  <li><strong>Least-privilege scopes</strong>: Documented rationale for every scope requested</li>
+  <li><strong>AI disclosures</strong>: Model (OpenRouter/gpt-oss-120b), accuracy limits, data retention (zero), tenancy (per-workspace)</li>
+  <li><strong>No Slack data trains LLMs</strong>: Explicit in listing; all LLM calls via OpenRouter</li>
+  <li><strong>Admin governance</strong>: Audit Log Action in every dispatch card; App Home shows recent matches and active dispatches</li>
+  <li><strong>Graceful degradation</strong>: Deterministic fallbacks for every failure mode (§2.5)</li>
+</ul>
+
+<hr>
+
+<div class="callout">
+  <strong>Final Note:</strong> Lifeline is not just a hackathon project — it is a deployable, mission-critical infrastructure layer for the social sector. The architecture is enterprise-grade; the impact is human-scale. Every line of code serves the goal of getting vulnerable people to safety faster.
+</div>
+
+</body>
+</html>
