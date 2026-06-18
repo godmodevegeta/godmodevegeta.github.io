@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synapse — Design Document</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+    --border: #30363d;
+    --surface: #161b22;
+    --code: #21262d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.7;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 { color: var(--accent); font-size: 2.2rem; border-bottom: 2px solid var(--accent); padding-bottom: .5rem; }
+  h2 { color: var(--accent2); font-size: 1.5rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+  h3 { color: var(--warn); font-size: 1.15rem; margin-top: 2rem; }
+  h4 { color: var(--fg); font-size: 1rem; margin-top: 1.5rem; }
+  code, pre {
+    background: var(--code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+    font-size: .88rem;
+  }
+  code { padding: .15rem .4rem; }
+  pre { padding: 1rem; overflow-x: auto; }
+  pre code { background: none; border: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid var(--border); padding: .6rem .8rem; text-align: left; }
+  th { background: var(--surface); color: var(--accent); }
+  tr:nth-child(even) { background: var(--surface); }
+  .badge {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border-radius: 12px;
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .badge-must { background: var(--danger); color: #fff; }
+  .badge-should { background: var(--warn); color: #000; }
+  .badge-may { background: var(--accent); color: #fff; }
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .callout-warn { border-left-color: var(--warn); }
+  .callout-danger { border-left-color: var(--danger); }
+  .toc { background: var(--surface); padding: 1.2rem; border-radius: 8px; margin: 1.5rem 0; }
+  .toc ul { margin: .5rem 0; padding-left: 1.2rem; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  .mermaid {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-family: monospace;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--fg);
+  }
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<h1>🧠 Synapse — Design Document</h1>
+<p><strong>Version:</strong> 3.0 (Locked) &nbsp;|&nbsp; <strong>Date:</strong> 2026-06-17 &nbsp;|&nbsp; <strong>Author:</strong> Synapse Team</p>
+
+<div class="callout">
+  <strong>Mission:</strong> Collapse enterprise "time-to-context" from 45 minutes to 4 seconds by transforming Slack into an active, transparent orchestration engine — not a passive chat app.
+</div>
+
+<div class="toc">
+  <strong>Table of Contents</strong>
+  <ul>
+    <li><a href="#1-prd">1. Product Requirements (PRD)</a></li>
+    <li><a href="#2-system">2. System Design</a></li>
+    <li><a href="#3-impl">3. Implementation Detail</a></li>
+    <li><a href="#4-appendix">4. Appendix</a></li>
+  </ul>
+</div>
+
+<hr>
+
+<h2 id="1-prd">1. Product Requirements (PRD)</h2>
+
+<h3>1.1 Problem Statement</h3>
+<p>When a critical issue arises in enterprise Slack, teams waste 30–60 minutes manually context-switching across GitHub, Jira, Salesforce, and Zendesk. Current incident tools (Rootly, Incident.io) provide workflows but lack AI reasoning to autonomously fetch and synthesize cross-tool context. Meanwhile, "agentic" demos propose auto-executing destructive actions, which fail every enterprise security review.</p>
+
+<h3>1.2 Solution</h3>
+<p>Synapse is a <strong>reactive, transparent orchestration agent</strong> that:</p>
+<ol>
+  <li>Ingests live Slack context via RTS API (capped at 50 messages)</li>
+  <li>Executes parallel, read-only MCP queries across registered tools</li>
+  <li>Scores threat severity via deterministic, weighted formula</li>
+  <li>Either replies in-thread (low threat) or spins up a temporary Swarm channel with a mobile-optimized War Room Dashboard (high threat)</li>
+  <li>All actions are <strong>drafted, not executed</strong> — human approval routes through the invoker's own Slack User Token</li>
+  <li>Auto-archives Swarms after 24h inactivity with AI-generated post-mortem</li>
+</ol>
+
+<h3>1.3 Success Criteria</h3>
+<table>
+  <tr><th>Metric</th><th>Target</th><th>Measurement</th></tr>
+  <tr><td>Time-to-context (demo)</td><td>≤ 4 seconds</td><td>Stopwatch from shortcut click to War Room Dashboard render</td></tr>
+  <tr><td>Mobile Block Kit render</td><td>100% clean on iOS + Android</td><td>Visual QA on physical devices</td></tr>
+  <tr><td>False-positive Swarm rate</td><td>≤ 10%</td><td>Deterministic Threat Score tuning</td></tr>
+  <tr><td>Audit log coverage</td><td>100% of invocations</td><td>Every Synapse action appends to #synapse-logs</td></tr>
+  <tr><td>Demo reliability</td><td>100% uptime</td><td>Pre-cached MCP + LLM responses, zero live external calls during demo</td></tr>
+</table>
+
+<h3>1.4 Non-Goals (Scope Fence)</h3>
+<table>
+  <tr><th>Non-Goal</th><th>Rationale</th></tr>
+  <tr><td>Predictive / proactive monitoring</td><td>Reactive, on-demand only. No background scraping, no creepy always-on AI.</td></tr>
+  <tr><td>Auto-execution of destructive actions</td><td>All actions require human approval. Bot has zero write scopes.</td></tr>
+  <tr><td>Generic MCP Registry UI</td><td>Hardcoded 3 servers for hackathon. "Add server" button is demo theater with progressive authority gate.</td></tr>
+  <tr><td>Real database for post-mortems</td><td>Slack channel (#synapse-logs) acts as append-only database. Zero infra overhead.</td></tr>
+  <tr><td>Continuous channel monitoring</td><td>On-demand invocation only. Keeps token costs near zero.</td></tr>
+</table>
+
+<h3>1.5 User Stories</h3>
+
+<h4>US-1: In-Thread Context Card (Low Threat)</h4>
+<p><strong>Given</strong> an engineer posts "Stripe auth failing for Acme Corp" in #dev-alerts<br>
+<strong>When</strong> another engineer clicks "Summon Synapse" message shortcut<br>
+<strong>Then</strong> Synapse fetches parallel MCP data, calculates Threat Score &lt; threshold<br>
+<strong>And</strong> replies in-thread with a compact Block Kit card: 3-bullet summary, ARR at risk, ticket count, no Swarm created.</p>
+
+<h4>US-2: Swarm Creation (High Threat)</h4>
+<p><strong>Given</strong> same trigger, but Zendesk shows 12 tickets in 1h and Salesforce shows $2.1M ARR<br>
+<strong>When</strong> Threat Score ≥ threshold<br>
+<strong>Then</strong> Synapse provisions #swarm-stripe-acme-20260617, invites dev lead + AE + CX rep<br>
+<strong>And</strong> drops War Room Dashboard with: summary, root cause, financial stakes, draft action buttons<br>
+<strong>And</strong> posts structured post-mortem to #synapse-logs upon 24h archive.</p>
+
+<h4>US-3: Human-in-the-Loop Action Approval</h4>
+<p><strong>Given</strong> a Swarm is active with a "Draft Zendesk Reply" button<br>
+<strong>When</strong> the CX rep clicks the button<br>
+<strong>Then</strong> Synapse generates a draft response via LLM<br>
+<strong>And</strong> presents it in a modal with "Send as @cx-rep" (using their User Token) or "Edit"<br>
+<strong>And</strong> execution is logged to #synapse-logs with full prompt + token identity.</p>
+
+<h3>1.6 Slack Marketplace Readiness</h3>
+
+<table>
+  <tr><th>Requirement</th><th>How Synapse Satisfies</th></tr>
+  <tr><td>Least-privilege scopes (§4.12, §6.5)</td><td>Bot: <code>chat:write</code>, <code>channels:read</code>, <code>channels:manage</code>, <code>groups:write</code>, <code>im:read</code>, <code>mpim:read</code>. User: <code>chat:write</code> (for approved actions only).</td></tr>
+  <tr><td>No Slack data trains LLMs (§4.12)</td><td>Explicit in listing. All LLM calls via OpenRouter; zero Slack data retention by model provider.</td></tr>
+  <tr><td>AI disclosures (§5.4)</td><td>Listing includes: model (OpenRouter/gpt-oss-120b), accuracy limits, data retention (none), tenancy (per-workspace isolation).</td></tr>
+  <tr><td>Admin governance (§4.2)</td><td>Audit Log Action in every Swarm. App Home shows recent invocations, active Swarms, and scope usage.</td></tr>
+  <tr><td>Graceful degradation (§4.13)</td><td>Deterministic fallbacks for every failure mode. See §2.5.</td></tr>
+</table>
+
+<hr>
+
+<h2 id="2-system">2. System Design</h2>
+
+<h3>2.1 Architecture Diagram</h3>
+
+<div class="mermaid">
+┌─────────────────────────────────────────────────────────────────┐
+│                         SLACK WORKSPACE                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ #dev-alerts  │  │ #swarm-xyz   │  │ #synapse-logs        │   │
+│  │ (trigger)    │  │ (war room)   │  │ (audit + postmortem) │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────────────────────┘   │
+└─────────┼─────────────────┼─────────────────────────────────────┘
+          │                 │
+          │  message_shortcut: "summon_synapse"
+          │                 │
+          ▼                 │
+┌────────────────────────────────────────────────────────────────┐
+│                    SYNAPSE BOLT APP (Vercel)                   │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  EVENT HANDLER: shortcut("summon_synapse")              │   │
+│  │  ├── ack()                                              │   │
+│  │  ├── setStatus("Working on it...")  ← streaming         │   │
+│  │  ├── startStream(task_display_mode: "plan")             │   │
+│  │  └── ROUTER: invokeOrchestration(channel, thread_ts)    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                              │                                 │
+│  ┌───────────────────────────┼──────────────────────────────┐  │
+│  │        ORCHESTRATION LAYER                               │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │  │
+│  │  │ Context     │  │ Threat      │  │ Swarm Manager   │   │  │
+│  │  │ Ingestor    │→ │ Engine      │→ │                 │   │  │
+│  │  │ (RTS API)   │  │ (scoring)   │  │ (channel + UI)  │   │  │
+│  │  └──────┬──────┘  └─────────────┘  └─────────────────┘   │  │
+│  │         │                                                │  │
+│  │  ┌──────┴──────────────────────────────────────────────┐ │  │
+│  │  │ MCP CLIENT (parallel Promise.all)                   │ │  │
+│  │  │ ┌─────────┐  ┌───────────┐  ┌───────────┐           │ │  │
+│  │  │ │ GitHub  │  │ Salesforce│  │ Zendesk   │           │ │  │
+│  │  │ │ (mock)  │  │ (mock)    │  │ (mock)    │           │ │  │
+│  │  │ └─────────┘  └───────────┘  └───────────┘           │ │  │
+│  │  └──────────────────────────────────────────────────── ┘ │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                              │                                 │
+│  ┌───────────────────────────┼──────────────────────────────┐  │
+│  │        AUDIT & POST-MORTEM LAYER                         │  │
+│  │  ├── appendStream(task updates)                          │  │
+│  │  ├── stopStream(final blocks)                            │  │
+│  │  └── logToChannel(#synapse-logs, structured)             │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+          │
+          │  LLM calls (OpenRouter / gpt-oss-120b:free)
+          ▼
+┌────────────────────────────────────────────────────────────────┐
+│                    EXTERNAL SERVICES                           │
+│  ┌──────────────┐  ┌────────────────────────────────────────┐  │
+│  │ OpenRouter   │  │ Mock MCP Servers (local, hackathon)    │  │
+│  │ (summarize,  │  │ ┌────────┐ ┌──────────┐ ┌─────────┐    │  │
+│  │  draft gen)  │  │ │ GitHub │ │Salesforce│ │ Zendesk │    │  │
+│  └──────────────┘  │ └────────┘ └──────────┘ └─────────┘    │  │
+│                    └────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>2.2 Data Flows</h3>
+
+<h4>Flow A: In-Thread Reply (Low Threat)</h4>
+<pre><code>User clicks "Summon Synapse" in #dev-alerts
+  → ack()
+  → setStatus("Analyzing context...")
+  → startStream(task_display_mode: "plan")
+  → [TASK: "Ingest Slack context"] 
+      → conversations.history(limit: 50)
+      → Slack AI summarize
+  → [TASK: "Query external systems"]
+      → Promise.all([
+          mcp.github.query("Stripe auth"),
+          mcp.salesforce.query("Acme Corp"),
+          mcp.zendesk.query("Stripe auth")
+        ])
+  → [TASK: "Calculate Threat Score"]
+      → (Ticket_Velocity × Severity_Weight) + (ARR × Account_Tier)
+      → Score = 23 (threshold = 50)
+  → [TASK: "Reply in-thread"]
+      → appendStream(task: complete)
+      → stopStream(blocks: compact_context_card)
+  → logToChannel(#synapse-logs, {invocation, score, action: "in_thread_reply"})
+</code></pre>
+
+<h4>Flow B: Swarm Creation (High Threat)</h4>
+<pre><code>Same as Flow A through Threat Score calculation
+  → Score = 87 (threshold = 50) → ESCALATE
+  → [TASK: "Provision Swarm channel"]
+      → conversations.create(name: "swarm-stripe-acme-20260617")
+      → conversations.invite(users: [dev_lead, ae, cx_rep])
+  → [TASK: "Build War Room Dashboard"]
+      → Block Kit: header + summary + root_cause + financial_stakes + actions
+  → [TASK: "Drop dashboard"]
+      → chat.postMessage(channel: #swarm-..., blocks: warRoomDashboard)
+  → stopStream(text: "Swarm channel created: #swarm-stripe-acme-20260617")
+  → logToChannel(#synapse-logs, {invocation, score, action: "swarm_created", channel_id})
+</code></pre>
+
+<h4>Flow C: Human Approves Action</h4>
+<pre><code>User clicks "Draft Zendesk Reply" in War Room Dashboard
+  → block_actions handler: action_id = "draft_zendesk_reply"
+  → ack()
+  → LLM generates draft response (context: issue summary + tone guidelines)
+  → views.open(modal: { draft_text, preview, "Send as @user", "Edit" })
+  → User clicks "Send as @user"
+  → Execute via user's Slack User Token (NOT bot token)
+  → Log: {action: "zendesk_reply_sent", actor: @user, draft, timestamp}
+  → Update War Room Dashboard: mark action complete, add green checkmark
+</code></pre>
+
+<h3>2.3 Component Specs</h3>
+
+<table>
+  <tr><th>Component</th><th>Responsibility</th><th>Key File</th></tr>
+  <tr><td><strong>Event Router</strong></td><td>Handles Slack events (shortcuts, block actions, app mentions). Routes to orchestration layer.</td><td><code>src/handlers/events.ts</code></td></tr>
+  <tr><td><strong>Context Ingestor</strong></td><td>Fetches last 50 messages via RTS API (or conversations.history fallback). Summarizes via Slack AI.</td><td><code>src/ingest/context.ts</code></td></tr>
+  <tr><td><strong>MCP Client</strong></td><td>Parallel execution of registered MCP servers. Timeout: 3s per call. Read-only enforcement.</td><td><code>src/mcp/client.ts</code></td></tr>
+  <tr><td><strong>Threat Engine</strong></td><td>Deterministic scoring. Tunable weights. No LLM involvement in scoring (deterministic = auditable).</td><td><code>src/engine/threat.ts</code></td></tr>
+  <tr><td><strong>Swarm Manager</strong></td><td>Channel provisioning, member invitation, Block Kit dashboard generation, auto-archive scheduling.</td><td><code>src/swarm/manager.ts</code></td></tr>
+  <tr><td><strong>Action Dispatcher</strong></td><td>Draft generation via LLM. Approval modal. Execution via user token. Audit logging.</td><td><code>src/actions/dispatcher.ts</code></td></tr>
+  <tr><td><strong>Audit Logger</strong></td><td>Structured logging to #synapse-logs. Every invocation, every action, every token identity.</td><td><code>src/audit/logger.ts</code></td></tr>
+  <tr><td><strong>App Home</strong></td><td>Registry view (3 hardcoded servers), recent invocations list, active Swarms, settings placeholder.</td><td><code>src/home/view.ts</code></td></tr>
+</table>
+
+<h3>2.4 Security Model</h3>
+
+<h4>Token Separation</h4>
+<table>
+  <tr><th>Token Type</th><th>Scopes</th><th>Used For</th></tr>
+  <tr><td>Bot Token (<code>xoxb-</code>)</td><td><code>chat:write</code>, <code>channels:read</code>, <code>channels:manage</code>, <code>groups:write</code>, <code>im:read</code>, <code>mpim:read</code></td><td>Read context, create channels, post messages, invite users</td></tr>
+  <tr><td>User Token (<code>xoxp-</code>)</td><td><code>chat:write</code></td><td>Approved actions only. Executed as the human, not the bot.</td></tr>
+</table>
+
+<h4>Audit Log Schema (per invocation)</h4>
+<pre><code>{
+  "invocation_id": "inv_abc123",
+  "timestamp": "2026-06-17T12:00:00Z",
+  "trigger": { "type": "message_shortcut", "user": "U123", "channel": "C456", "thread_ts": "1234567890.123456" },
+  "rts_payload": { "message_count": 50, "summary": "Stripe auth failing for Acme Corp" },
+  "mcp_queries": [
+    { "server": "github", "query": "Stripe auth recent commits", "latency_ms": 420, "result_hash": "sha256:..." },
+    { "server": "salesforce", "query": "Acme Corp ARR", "latency_ms": 380, "result_hash": "sha256:..." },
+    { "server": "zendesk", "query": "Stripe auth tickets 1h", "latency_ms": 290, "result_hash": "sha256:..." }
+  ],
+  "llm_prompt": "Summarize: [context] + [mcp_results] → threat assessment",
+  "threat_score": { "raw": 87, "threshold": 50, "escalated": true },
+  "action": { "type": "swarm_created", "channel_id": "C789", "invited_users": ["U111", "U222"] },
+  "actor_token": "xoxp-*** (user: U123)"
+}
+</code></pre>
+
+<h3>2.5 Error Handling & Deterministic Fallbacks</h3>
+
+<table>
+  <tr><th>Failure Mode</th><th>Fallback Behavior</th><th>User Sees</th></tr>
+  <tr><td>MCP server timeout (>3s)</td><td>Return partial data + warning flag. Do not fail entire flow.</td><td>"⚠️ GitHub query timed out. Proceeding with Salesforce + Zendesk data."</td></tr>
+  <tr><td>LLM rate limit (OpenRouter free tier)</td><td>Return pre-cached summary template. Flag as "summary may be incomplete."</td><td>"⚠️ AI summary temporarily unavailable. Raw context below."</td></tr>
+  <tr><td>Threat Score calculation error</td><td>Default to in-thread reply (conservative). Log error.</td><td>Standard in-thread card with manual escalation button.</td></tr>
+  <tr><td>Channel creation fails (name collision)</td><td>Append Unix timestamp to channel name. Retry once.</td><td>Transparent — user sees #swarm-stripe-acme-20260617-123456</td></tr>
+  <tr><td>Block Kit validation fails</td><td>Send plain-text fallback + retry button (§4.13)</td><td>"I could not format that response safely. Try again."</td></tr>
+  <tr><td>User lacks User Token scope for action</td><td>Show modal: "Connect your account to execute this action."</td><td>OAuth re-prompt for missing scope.</td></tr>
+</table>
+
+<hr>
+
+<h2 id="3-impl">3. Implementation Detail</h2>
+
+<h3>3.1 File Structure</h3>
+<pre><code>synapse/
+├── slack.json                 # Slack CLI manifest
+├── vercel.json                # Vercel deployment config
+├── package.json
+├── .env.example
+├── src/
+│   ├── app.ts                 # Bolt app initialization
+│   ├── config/
+│   │   ├── mcp-registry.ts    # Hardcoded MCP servers (hackathon)
+│   │   ├── threat-weights.ts  # Scoring constants
+│   │   └── slack-manifest.ts  # Scope rationale + manifest JSON
+│   ├── handlers/
+│   │   ├── shortcuts.ts       # "Summon Synapse" message shortcut
+│   │   ├── block-actions.ts   # War Room button clicks
+│   │   ├── app-home.ts        # App Home opened
+│   │   └── events.ts          # app_mention, member_joined_channel
+│   ├── ingest/
+│   │   └── context.ts         # RTS API / conversations.history + Slack AI summarize
+│   ├── mcp/
+│   │   ├── client.ts          # Parallel MCP executor
+│   │   ├── github.ts          # Mock GitHub MCP server
+│   │   ├── salesforce.ts      # Mock Salesforce MCP server
+│   │   └── zendesk.ts         # Mock Zendesk MCP server
+│   ├── engine/
+│   │   └── threat.ts          # Threat Score calculation
+│   ├── swarm/
+│   │   ├── manager.ts         # Channel provision, invite, archive
+│   │   └── dashboard.ts       # Block Kit War Room Dashboard builder
+│   ├── actions/
+│   │   └── dispatcher.ts      # Draft generation + user-token execution
+│   ├── audit/
+│   │   └── logger.ts          # Structured logging to #synapse-logs
+│   ├── llm/
+│   │   └── openrouter.ts      # OpenRouter client (gpt-oss-120b:free)
+│   └── types/
+│       └── index.ts           # Shared TypeScript interfaces
+├── demo/
+│   └── mock-data.ts           # Pre-cached responses for "Stripe API Outage" narrative
+└── README.md                  # Build instructions + demo transparency disclosure
+</code></pre>
+
+<h3>3.2 Environment Variables & Scopes</h3>
+
+<pre><code># .env.example
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret
+SLACK_CLIENT_ID=your-client-id
+SLACK_CLIENT_SECRET=your-client-secret
+OPENROUTER_API_KEY=sk-or-v1-your-openrouter-key
+SYNAPSE_LOGS_CHANNEL_ID=Cxxxxxxxxx  # #synapse-logs channel ID
+THREAT_THRESHOLD=50
+</code></pre>
+
+<h4>Scope Rationale (Marketplace Non-Negotiable)</h4>
+<table>
+  <tr><th>Scope</th><th>Feature</th><th>Why Required</th></tr>
+  <tr><td><code>chat:write</code></td><td>Post messages, reply in threads</td><td>Core functionality</td></tr>
+  <tr><td><code>channels:read</code></td><td>Read channel metadata</td><td>RTS API context ingestion</td></tr>
+  <tr><td><code>channels:manage</code></td><td>Create Swarm channels</td><td>Swarm provisioning</td></tr>
+  <tr><td><code>groups:write</code></td><td>Invite users to private channels</td><td>Swarm member invitation</td></tr>
+  <tr><td><code>im:read</code>, <code>mpim:read</code></td><td>Read DM/MPIM metadata</td><td>App Home context</td></tr>
+  <tr><td><code>commands</code></td><td>Message shortcuts</td><td>"Summon Synapse" entry point</td></tr>
+  <tr><td><code>assistant:write</code></td><td>Slack AI integration</td><td>Summarization + streaming status</td></tr>
+</table>
+
+<h3>3.3 Key Modules</h3>
+
+<h4>3.3.1 Context Ingestor (<code>src/ingest/context.ts</code>)</h4>
+<pre><code>interface ContextPayload {
+  messages: SlackMessage[];
+  summary: string;
+  thread_ts: string;
+}
+
+export async function ingestContext(
+  client: WebClient,
+  channelId: string,
+  threadTs: string
+): Promise&lt;ContextPayload&gt; {
+  // 1. Fetch last 50 messages (RTS API preferred, fallback to conversations.history)
+  const history = await client.conversations.history({
+    channel: channelId,
+    latest: threadTs,
+    limit: 50,
+    inclusive: true
+  });
+
+  const messages = history.messages?.slice(0, 50) ?? [];
+
+  // 2. Summarize via Slack AI (or OpenRouter fallback)
+  const textBlock = messages.map(m => `&lt;@${m.user}&gt;: ${m.text}`).join("\n");
+  const summary = await summarizeWithSlackAI(client, channelId, threadTs, textBlock)
+    ?? await summarizeWithOpenRouter(textBlock);
+
+  return { messages, summary, thread_ts: threadTs };
+}
+</code></pre>
+
+<h4>3.3.2 MCP Client (<code>src/mcp/client.ts</code>)</h4>
+<pre><code>interface MCPResult {
+  server: string;
+  data: unknown;
+  latencyMs: number;
+  error?: string;
+}
+
+export async function executeParallelMCP(
+  registry: MCPServer[],
+  context: ContextPayload
+): Promise&lt;MCPResult[]&gt; {
+  const promises = registry.map(async (server) => {
+    const start = Date.now();
+    try {
+      // 3-second timeout per call
+      const data = await Promise.race([
+        server.query(context),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("TIMEOUT")), 3000)
+        )
+      ]);
+      return { server: server.name, data, latencyMs: Date.now() - start };
+    } catch (err) {
+      return {
+        server: server.name,
+        data: null,
+        latencyMs: Date.now() - start,
+        error: err instanceof Error ? err.message : "UNKNOWN"
+      };
+    }
+  });
+
+  return Promise.all(promises);
+}
+</code></pre>
+
+<h4>3.3.3 Threat Engine (<code>src/engine/threat.ts</code>)</h4>
+<pre><code>interface ThreatInput {
+  ticketVelocity1h: number;      // from Zendesk MCP
+  severityWeight: number;        // 1.0 (minor) → 5.0 (sev-1)
+  arrAtRisk: number;             // from Salesforce MCP (USD)
+  accountTierMultiplier: number; // 1.0 (free) → 3.0 (enterprise)
+}
+
+interface ThreatResult {
+  score: number;
+  threshold: number;
+  escalated: boolean;
+  breakdown: Record&lt;string, number&gt;;
+}
+
+export function calculateThreatScore(input: ThreatInput): ThreatResult {
+  const THRESHOLD = parseInt(process.env.THREAT_THRESHOLD ?? "50");
+
+  const ticketComponent = input.ticketVelocity1h * input.severityWeight;
+  const arrComponent = (input.arrAtRisk / 1000) * input.accountTierMultiplier; // normalize ARR to thousands
+
+  const score = Math.round(ticketComponent + arrComponent);
+
+  return {
+    score,
+    threshold: THRESHOLD,
+    escalated: score >= THRESHOLD,
+    breakdown: { ticketComponent, arrComponent, rawScore: score }
+  };
+}
+
+// Sample calculations:
+// A) Low threat:  2 tickets × 1.0 severity + ($10k / 1000) × 1.0 = 2 + 10 = 12  → in-thread
+// B) Med threat:  8 tickets × 2.0 severity + ($500k / 1000) × 2.0 = 16 + 1000 = 1016 → SWARM
+// C) Edge case:  12 tickets × 1.0 severity + ($5k / 1000) × 1.0 = 12 + 5 = 17  → in-thread (velocity alone insufficient)
+</code></pre>
+
+<h4>3.3.4 Swarm Manager (<code>src/swarm/manager.ts</code>)</h4>
+<pre><code>interface SwarmConfig {
+  issueSlug: string;
+  contextOwners: string[];  // Slack user IDs
+  dashboardBlocks: BlockKitBlock[];
+}
+
+export async function provisionSwarm(
+  client: WebClient,
+  config: SwarmConfig
+): Promise&lt;{ channelId: string; channelName: string }&gt; {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const channelName = `swarm-${config.issueSlug}-${timestamp}`;
+
+  const channel = await client.conversations.create({
+    name: channelName,
+    is_private: false  // public for transparency; private requires groups:write
+  });
+
+  const channelId = channel.channel?.id!;
+
+  // Invite context owners
+  await client.conversations.invite({
+    channel: channelId,
+    users: config.contextOwners.join(",")
+  });
+
+  // Drop War Room Dashboard
+  await client.chat.postMessage({
+    channel: channelId,
+    text: `🚨 War Room opened for ${config.issueSlug}`,
+    blocks: config.dashboardBlocks
+  });
+
+  // Schedule auto-archive (24h) — cron or setTimeout in MVP
+  scheduleAutoArchive(client, channelId, 24 * 60 * 60 * 1000);
+
+  return { channelId, channelName };
+}
+</code></pre>
+
+<h3>3.4 Mock MCP Server Specs</h3>
+
+<h4>3.4.1 GitHub MCP (<code>src/mcp/github.ts</code>)</h4>
+<pre><code>// Request shape
+{ "query": "Stripe auth recent commits", "repo": "acme-corp/payments" }
+
+// Response shape (mocked for "Stripe API Outage" demo)
+{
+  "commits": [
+    {
+      "sha": "a1b2c3d",
+      "message": "feat: update Stripe SDK to v14.2.0",
+      "author": "dev-sarah",
+      "timestamp": "2026-06-17T11:30:00Z",
+      "risk_flag": true,
+      "risk_reason": "Breaking change in auth header format"
+    }
+  ],
+  "related_prs": ["#4421"],
+  "last_deployment": "2026-06-17T11:45:00Z"
+}
+</code></pre>
+
+<h4>3.4.2 Salesforce MCP (<code>src/mcp/salesforce.ts</code>)</h4>
+<pre><code>// Request shape
+{ "query": "Acme Corp account details" }
+
+// Response shape (mocked)
+{
+  "account": {
+    "name": "Acme Corp",
+    "arr": 2100000,
+    "tier": "enterprise",
+    "tier_multiplier": 3.0,
+    "renewal_date": "2026-09-15",
+    "health_score": 87,
+    "csm": "U2222222222"  // Slack user ID of CSM
+  },
+  "opportunities_at_risk": ["Opp-2026-Q3-0042"]
+}
+</code></pre>
+
+<h4>3.4.3 Zendesk MCP (<code>src/mcp/zendesk.ts</code>)</h4>
+<pre><code>// Request shape
+{ "query": "Stripe auth tickets", "time_window": "1h" }
+
+// Response shape (mocked)
+{
+  "ticket_velocity_1h": 12,
+  "severity_weight": 2.5,
+  "tickets": [
+    { "id": "44219", "subject": "Cannot complete checkout", "priority": "high", "org": "Acme Corp" },
+    { "id": "44220", "subject": "Payment failed", "priority": "high", "org": "Beta Inc" },
+    // ... 10 more
+  ],
+  "affected_orgs": ["Acme Corp", "Beta Inc", "Gamma LLC"],
+  "correlated_error": "Stripe auth: invalid_api_key"
+}
+</code></pre>
+
+<h3>3.5 Block Kit Schemas</h3>
+
+<h4>3.5.1 War Room Dashboard (Mobile-Optimized)</h4>
+<pre><code>[
+  {
+    "type": "header",
+    "text": { "type": "plain_text", "text": "🚨 Swarm: Stripe Auth Outage", "emoji": true }
+  },
+  { "type": "divider" },
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "*AI Summary*\n• Stripe auth failing across multiple orgs\n• Root cause: breaking change in SDK v14.2.0 (PR #4421)\n• 12 tickets in 1h, 3 orgs affected"
+    }
+  },
+  { "type": "divider" },
+  {
+    "type": "section",
+    "fields": [
+      { "type": "mrkdwn", "text": "*💰 ARR at Risk*\n$2.1M (Enterprise — Acme Corp)" },
+      { "type": "mrkdwn", "text": "*📊 Threat Score*\n87 / 50 🔴" },
+      { "type": "mrkdwn", "text": "*🔧 Root Cause*\n`a1b2c3d` by @dev-sarah" },
+      { "type": "mrkdwn", "text": "*⏱️ Detected*\n&lt;!date^1234567890^{date_num} {time}|Jun 17, 2026&gt;" }
+    ]
+  },
+  { "type": "divider" },
+  {
+    "type": "actions",
+    "elements": [
+      {
+        "type": "button",
+        "text": { "type": "plain_text", "text": "📝 Draft Zendesk Reply", "emoji": true },
+        "action_id": "draft_zendesk_reply",
+        "style": "primary",
+        "value": "ticket_44219"
+      },
+      {
+        "type": "button",
+        "text": { "type": "plain_text", "text": "↩️ Draft Rollback PR", "emoji": true },
+        "action_id": "draft_rollback_pr",
+        "value": "commit_a1b2c3d"
+      },
+      {
+        "type": "button",
+        "text": { "type": "plain_text", "text": "📋 View Audit Log", "emoji": true },
+        "action_id": "view_audit_log",
+        "value": "inv_abc123"
+      }
+    ]
+  },
+  {
+    "type": "context",
+    "elements": [
+      { "type": "mrkdwn", "text": "⏳ Auto-archives in 24h • &lt;#C123|#synapse-logs&gt;" }
+    ]
+  }
+]
+</code></pre>
+
+<h4>3.5.2 Audit Log Modal</h4>
+<pre><code>{
+  "type": "modal",
+  "callback_id": "audit_log_modal",
+  "title": { "type": "plain_text", "text": "Audit Log: inv_abc123" },
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*RTS Payload*\n```\n50 messages from #dev-alerts\nSummary: Stripe auth failing for Acme Corp\n```"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*MCP Queries (Read-Only)*\n```\nGitHub: query=Stripe auth recent commits | 420ms\nSalesforce: query=Acme Corp ARR | 380ms\nZendesk: query=Stripe auth tickets 1h | 290ms\n```"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*LLM Prompt*\n```\nSummarize cross-tool context for threat assessment...\n```"
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Threat Score Calculation*\n```\n(12 × 2.5) + (2100 × 3.0) = 30 + 6300 = 6330 → normalized: 87\n```"
+      }
+    }
+  ]
+}
+</code></pre>
+
+<h4>3.5.3 App Home — MCP Registry View</h4>
+<pre><code>[
+  {
+    "type": "header",
+    "text": { "type": "plain_text", "text": "🧠 Synapse Control Center", "emoji": true }
+  },
+  {
+    "type": "section",
+    "text": { "type": "mrkdwn", "text": "*Active MCP Servers*" }
+  },
+  {
+    "type": "section",
+    "text": {
+      "type": "mrkdwn",
+      "text": "✅ *GitHub* — `github.mcp.synapse`\n✅ *Salesforce* — `salesforce.mcp.synapse`\n✅ *Zendesk* — `zendesk.mcp.synapse`"
+    }
+  },
+  {
+    "type": "actions",
+    "elements": [
+      {
+        "type": "button",
+        "text": { "type": "plain_text", "text": "➕ Register MCP Server", "emoji": true },
+        "action_id": "register_mcp_server",
+        "style": "danger"  // progressive authority: admin-only
+      }
+    ]
+  },
+  { "type": "divider" },
+  {
+    "type": "section",
+    "text": { "type": "mrkdwn", "text": "*Recent Activity*\n• Swarm #swarm-stripe-acme opened 2m ago\n• 3 in-thread replies today\n• 0 errors in last 24h" }
+  }
+]
+</code></pre>
+
+<h3>3.6 Streaming & Task Cards Implementation</h3>
+
+<pre><code>// In shortcut handler
+const stream = await client.chat.startStream({
+  channel: channelId,
+  thread_ts: threadTs,
+  task_display_mode: 'plan'
+});
+
+// Task 1: Ingest
+await client.chat.appendStream({
+  channel: channelId,
+  ts: stream.ts,
+  chunks: [
+    { type: 'markdown', text: '🔍 Analyzing Slack context...' },
+    { type: 'task', id: 'ingest', text: 'Ingest Slack context (50 messages)', status: 'in_progress' }
+  ]
+});
+
+const context = await ingestContext(client, channelId, threadTs);
+
+// Task 2: MCP queries
+await client.chat.appendStream({
+  channel: channelId,
+  ts: stream.ts,
+  chunks: [
+    { type: 'task', id: 'ingest', text: 'Ingest Slack context', status: 'complete' },
+    { type: 'task', id: 'mcp', text: 'Query external systems (GitHub, Salesforce, Zendesk)', status: 'in_progress' }
+  ]
+});
+
+const mcpResults = await executeParallelMCP(registry, context);
+
+// Task 3: Score & decide
+await client.chat.appendStream({
+  channel: channelId,
+  ts: stream.ts,
+  chunks: [
+    { type: 'task', id: 'mcp', text: 'Query external systems', status: 'complete' },
+    { type: 'task', id: 'score', text: 'Calculate threat score', status: 'in_progress' }
+  ]
+});
+
+const threat = calculateThreatScore(extractThreatInput(mcpResults));
+
+// Final: stop stream with result blocks
+const finalBlocks = threat.escalated
+  ? buildSwarmCreatedBlocks(threat, swarmChannelId)
+  : buildInThreadBlocks(threat, context);
+
+await client.chat.stopStream({
+  channel: channelId,
+  ts: stream.ts,
+  text: threat.escalated ? `Swarm created: #${swarmChannelName}` : 'Context analysis complete',
+  blocks: finalBlocks
+});
+
+await client.assistant.threads.setStatus({
+  channel_id: channelId,
+  thread_ts: threadTs,
+  status: ''
+});
+</code></pre>
+
+<h3>3.7 Deployment Guide</h3>
+
+<h4>Step 1: Scaffold with Slack CLI</h4>
+<pre><code># Use the AI assistant template for Bolt JS
+slack create synapse --template slack-samples/bolt-js-assistant-template
+cd synapse
+npm install
+</code></pre>
+
+<h4>Step 2: Install Dependencies</h4>
+<pre><code>npm install @slack/bolt openai  # OpenRouter is OpenAI-compatible
+npm install -D typescript @types/node
+</code></pre>
+
+<h4>Step 3: Configure Environment</h4>
+<pre><code># Copy .env.example → .env.local
+# Fill in SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, OPENROUTER_API_KEY
+# Create #synapse-logs channel, copy its ID to SYNAPSE_LOGS_CHANNEL_ID
+</code></pre>
+
+<h4>Step 4: Local Test</h4>
+<pre><code>slack run
+# App appears in sandbox. Test "Summon Synapse" message shortcut.
+</code></pre>
+
+<h4>Step 5: Deploy to Vercel</h4>
+<pre><code># Create Vercel project
+vercel --prod
+
+# Set environment variables in Vercel dashboard
+# Update Slack app callback URLs:
+#   Events: https://synapse.vercel.app/api/slack/events
+#   Interactivity: https://synapse.vercel.app/api/slack/events
+</code></pre>
+
+<h3>3.8 Demo Script (3 Minutes, Shot-by-Shot)</h3>
+
+<table>
+  <tr><th>Time</th><th>Shot</th><th>Audio / Narration</th></tr>
+  <tr><td>0:00–0:30</td><td><strong>Split-screen hook.</strong> Left: screen recording of engineer frantically tab-switching across GitHub, Salesforce, Zendesk, Slack — 45 minutes of confusion. Right: empty Slack channel.</td><td>"When Stripe auth fails for your biggest customer, your team wastes 45 minutes assembling context. What if it took 4 seconds?"</td></tr>
+  <tr><td>0:30–0:45</td><td><strong>Trigger.</strong> Engineer posts "Stripe auth failing for Acme Corp" in #dev-alerts. Another engineer clicks "Summon Synapse" message shortcut.</td><td>"Meet Synapse. Summon it from any message."</td></tr>
+  <tr><td>0:45–1:15</td><td><strong>Streaming analysis.</strong> Live task cards appear: "Ingest Slack context" → "Query GitHub" → "Query Salesforce" → "Query Zendesk" → "Calculate threat score."</td><td>"Synapse reads the room, then reaches across your entire stack in parallel — GitHub, Salesforce, Zendesk — via the open MCP standard."</td></tr>
+  <tr><td>1:15–1:45</td><td><strong>Swarm creation.</strong> New channel #swarm-stripe-acme-20260617 appears. Invites auto-sent. War Room Dashboard drops with summary, ARR at risk ($2.1M), root cause commit, action buttons.</td><td>"Threat score: 87. Synapse spins up a war room, invites the exact people who need to be here, and gives them everything to decide — instantly."</td></tr>
+  <tr><td>1:45–2:15</td><td><strong>Human-in-the-loop.</strong> CX rep clicks "Draft Zendesk Reply." Modal opens with AI-generated draft. Clicks "Send as @cx-rep." Message sends via their identity. Audit log shows full trace.</td><td>"No rogue AI. Every action drafts, never executes. Humans approve. And every decision is logged for compliance."</td></tr>
+  <tr><td>2:15–2:45</td><td><strong>App Home + Registry.</strong> Pan to App Home: 3 MCP servers registered, recent activity, "Register MCP Server" button with admin gate.</td><td>"Synapse is a platform. Any developer can plug in their tools via MCP. No vendor lock-in. No waiting for integrations."</td></tr>
+  <tr><td>2:45–3:00</td><td><strong>Auto-archive.</strong> 24h later, channel archives. Post-mortem appended to #synapse-logs. Clean workspace.</td><td>"And when it's done, it cleans up after itself. Synapse: where AI doesn't just assist — it orchestrates."</td></tr>
+</table>
+
+<div class="callout callout-warn">
+  <strong>Demo Transparency:</strong> All MCP responses and LLM outputs are pre-cached for the "Stripe API Outage" narrative. This is explicitly disclosed in README.md. Live external calls are not used during the recorded demo to guarantee reliability.
+</div>
+
+<hr>
+
+<h2 id="4-appendix">4. Appendix</h2>
+
+<h3>4.1 Marketplace Submission Checklist</h3>
+
+<table>
+  <tr><th>Item</th><th>Status</th><th>Evidence</th></tr>
+  <tr><td>≥5 active workspaces (28 days)</td><td>⏳ Post-hackathon</td><td>Install in 5+ sandboxes, collect usage logs</td></tr>
+  <tr><td>Least-privilege scope rationale</td><td>✅ Complete</td><td>§3.2 scope table + manifest justification</td></tr>
+  <tr><td>OAuth + request signing</td><td>✅ Complete</td><td>Bolt handles HMAC verification; OAuth via Slack CLI</td></tr>
+  <tr><td>No LLM training on Slack data</td><td>✅ Complete</td><td>OpenRouter API; zero retention policy documented</td></tr>
+  <tr><td>AI disclosures (accuracy, model, data)</td><td>✅ Complete</td><td>Listing copy drafted; accuracy limits stated</td></tr>
+  <tr><td>Admin governance (audit, controls)</td><td>✅ Complete</td><td>Audit Log Action + App Home controls</td></tr>
+  <tr><td>Graceful degradation</td><td>✅ Complete</td><td>§2.5 fallback matrix implemented</td></tr>
+  <tr><td>Polished listing assets</td><td>⏳ Post-hackathon</td><td>Screenshots, demo video, support contact</td></tr>
+</table>
+
+<h3>4.2 Testing Matrix</h3>
+
+<table>
+  <tr><th>Test Case</th><th>Desktop</th><th>iOS</th><th>Android</th></tr>
+  <tr><td>Message shortcut trigger</td><td>✅</td><td>✅</td><td>✅</td></tr>
+  <tr><td>Streaming task cards render</td><td>✅</td><td>✅</td><td>✅</td></tr>
+  <tr><td>War Room Dashboard (Block Kit)</td><td>✅</td><td>✅</td><td>✅</td></tr>
+  <tr><td>Audit Log modal</td><td>✅</td><td>✅</td><td>✅</td></tr>
+  <tr><td>Action approval modal</td><td>✅</td><td>✅</td><td>✅</td></tr>
+  <tr><td>App Home Registry view</td><td>✅</td><td>✅</td><td>✅</td></tr>
+  <tr><td>Auto-archive notification</td><td>✅</td><td>✅</td><td>✅</td></tr>
+</table>
+
+<h3>4.3 Known Limitations & Future Work</h3>
+
+<table>
+  <tr><th>Limitation</th><th>Mitigation (Hackathon)</th><th>Future Work</th></tr>
+  <tr><td>MCP servers are mocked</td><td>3 hardcoded servers with realistic data</td><td>Connect to real GitHub/Salesforce/Zendesk APIs via OAuth</td></tr>
+  <tr><td>Threat Score weights are static</td><td>Hardcoded in <code>threat-weights.ts</code></td><td>Admin-configurable weights via App Home settings</td></tr>
+  <tr><td>Auto-archive uses setTimeout</td><td>24h timeout in-memory (resets on deploy)</td><td>Scheduled job (Vercel Cron or external scheduler)</td></tr>
+  <tr><td>User Token requires OAuth re-prompt</td><td>Documented in onboarding</td><td>Slack workspace-level OAuth with granular scopes</td></tr>
+  <tr><td>No real-time predictive monitoring</td><td>On-demand only (by design)</td><td>Optional background monitoring with opt-in per channel</td></tr>
+  <tr><td>LLM provider is single-point-of-failure</td><td>OpenRouter free tier; fallback to Slack AI native</td><td>Multi-provider routing with automatic failover</td></tr>
+</table>
+
+<div class="callout">
+  <strong>Final Note:</strong> This document is a living specification. During the hackathon, any deviation from this design must be logged in <code>README.md#deviations</code> with rationale. The golden rule: <em>if it contradicts this doc, the doc wins unless the team unanimously agrees the change reduces scope without reducing demo impact.</em>
+</div>
+
+</body>
+</html>
