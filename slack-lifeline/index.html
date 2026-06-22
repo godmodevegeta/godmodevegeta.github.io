@@ -271,6 +271,7 @@
             │  │ (official)       │  │ (community)       │  │ (custom FastMCP)         │     │
             │  │ OAuth / PAT      │  │ Service Account   │  │ Deterministic validation │     │
             │  │ Shelter roster   │  │ Volunteer roster  │  │ Physical constraints     │     │
+            │  │ lock_resource    │  │ lock_resource     │  │ evaluate_compatibility   │     │
             │  └──────────────────┘  └───────────────────┘  └──────────────────────────┘     │
             └────────────────────────────────────────────────────────────────────────────────┘
 </div>
@@ -287,7 +288,7 @@
   <tr>
     <td><strong>Context Ingestor</strong></td>
     <td>Fetches ambient workspace context: intake thread + logistics alerts + shelter-ops channels</td>
-    <td><code>assistant.search.context</code> API — cross-workspace search across messages, files, channels, canvases</td>
+    <td><code>assistant.search.context</code> API — cross-channel search across messages, files, channels, canvases within the workspace</td>
   </tr>
   <tr>
     <td><strong>Slackbot MCP Client</strong></td>
@@ -301,7 +302,7 @@
   </tr>
   <tr>
     <td><strong>Dispatch Manager</strong></td>
-    <td>Block Kit Action Card generation. Two-button approval flow. <code>lock_resource</code> execution.</td>
+    <td>Block Kit Action Card generation. Two-button approval flow. <code>lock_resource</code> execution with user attribution.</td>
     <td><code>views.open</code> (modal), <code>chat.postMessage</code> (DM), Slack User Token routing</td>
   </tr>
   <tr>
@@ -407,7 +408,36 @@
      [ONTOLOGY] Reason: motorized_wheelchair (350 lbs) <= lift_capacity (500 lbs)
 </code></pre>
 
-<h4>Flow C: Two-Button Human Approval</h4>
+<h4>Flow C: Autonomous Constraint Relaxation (No Exact Match)</h4>
+<pre><code>Trigger: "Need housing for family of 3, wheelchair, service dog, Zone B"
+
+  → Step 1: Strict query to Airtable MCP
+     filter: { zone: "B", min_capacity: 3, wheelchair: true, pets: true }
+     → Result: [] (zero shelters match all constraints)
+
+  → Step 2: Agent autonomously relaxes lowest-priority constraint
+     → System prompt: "If strict query returns empty, drop the lowest-priority
+        constraint and re-query. Priority order: zone > wheelchair > pets > capacity"
+     → Relaxed query: { zone: "B", min_capacity: 3, wheelchair: true, pets: ANY }
+     → Result: [St. Jude's Center (pets allowed), Hope Shelter (pets allowed)]
+     → Both pass. No further relaxation needed.
+
+  → Step 3: If relaxed query still returns empty
+     → Drop next constraint: wheelchair = ANY
+     → Result: [Tenderloin Housing Clinic (no wheelchair, no pets)]
+     → Still fails ontology (wheelchair required). Continue relaxation...
+
+  → Step 4: Final fallback — present partial matches to human
+     → Block Kit shows:
+        ⚠️ No exact match found. Closest options:
+        • St. Jude's Center — meets 3/4 constraints (missing: ???)
+        • Hope Shelter — meets 3/4 constraints (missing: ???)
+        • [ 🔍 Expand to Zone A+C ]  [ 📞 Escalate to Supervisor ]
+
+  → Human dispatcher chooses next action.
+</code></pre>
+
+<h4>Flow D: Two-Button Human Approval</h4>
 <pre><code>Dispatcher clicks "📋 Preview Dispatch"
 
   → views.open(modal: {
@@ -417,11 +447,11 @@
         { section: "Message: Urgent pickup needed — Zone B, family of 3, wheelchair + service dog." },
         { section: "Route: Via 4th Ave (Mission St closed)" },
         { section: "To: St. Jude's Center (Shelter)" },
-        { section: "Message: Incoming referral — 3 beds reserved. ETA ~12 min." },
+        { section: "Message: Incoming referral — 3 beds reserved. Client arrives via volunteer transport." },
         { divider },
         { section: "🔒 Resource Locks" },
-        { section: "• St. Jude's Center: 3 beds → 1 bed remaining" },
-        { section: "• Dave: status → 'On Transport Run'" },
+        { section: "• St. Jude's Center: 4 beds → 1 bed remaining" },
+        { section: "• Dave: Available → On Transport Run" },
         { divider },
         { actions: [
             { button: "✅ Confirm & Send", action_id: "confirm_dispatch", style: "primary" },
@@ -432,23 +462,38 @@
     })
 
   → Dispatcher clicks "✅ Confirm & Send"
-    → mcp.airtable.lock_resource({ shelter_id: "rec456", beds: 3 })
-    → mcp.sheets.lock_resource({ volunteer_id: "vol_01", status: "On Transport Run" })
+    → mcp.airtable.lock_resource({
+        shelter_id: "rec456",
+        resource_type: "bed",
+        quantity: 3,
+        initiated_by_user_id: "U1234567890"  // dispatcher's Slack user ID
+      })
+    → mcp.sheets.lock_resource({
+        volunteer_id: "vol_01",
+        resource_type: "status",
+        status: "On Transport Run",
+        initiated_by_user_id: "U1234567890"
+      })
     → chat.postMessage(DM to Dave: dispatch details + route)
     → chat.postMessage(DM to St. Jude's: incoming referral)
     → chat.postMessage(#shelter-ops: "St. Jude's: 3 beds locked. Dave dispatched.")
     → Update Block Kit card in #intake: green checkmark, "Dispatched at 14:32"
-    → logToChannel(#lifeline-logs, { action: "dispatch_confirmed", actor: @dispatcher, locks: [...], timestamp })
+    → logToChannel(#lifeline-logs, {
+        action: "dispatch_confirmed",
+        actor: "U1234567890",
+        locks: [...],
+        timestamp
+      })
 </code></pre>
 
-<h3>2.4 Security & Trust Model</h3>
+<h3>2.4 Security & Trust Model <span class="fix-badge">Fix 1</span></h3>
 
 <table>
   <tr><th>Principle</th><th>Implementation</th><th>Why It Matters for NGOs</th></tr>
   <tr>
     <td><strong>Read/Write Separation</strong></td>
-    <td>MCP servers are <strong>read-only</strong> for all inventory queries. <code>lock_resource</code> executes only after human confirmation, via the <strong>dispatcher's Slack User Token</strong>, not the bot.</td>
-    <td>The AI researches. The human decides. No unsupervised contact with vulnerable clients.</td>
+    <td>MCP servers are <strong>read-only</strong> for all inventory queries. <code>lock_resource</code> executes only after human confirmation, with the <strong>dispatcher's Slack user_id passed as an explicit parameter</strong> in the MCP tool call. The MCP server logs this user_id in its audit trail and verifies write permissions.</td>
+    <td>The AI researches. The human decides. Every write is attributable to a specific human. No anonymous bot actions.</td>
   </tr>
   <tr>
     <td><strong>Deterministic Ontology Validation</strong></td>
@@ -472,7 +517,7 @@
   </tr>
 </table>
 
-<h3>2.5 Error Handling & Fallbacks</h3>
+<h3>2.5 Error Handling & Fallbacks <span class="fix-badge">Fix 3</span></h3>
 
 <table>
   <tr><th>Failure Mode</th><th>Fallback Behavior</th><th>User Experience</th></tr>
@@ -487,9 +532,9 @@
     <td>"⚠️ Constraint validator offline. Match presented without physical validation. Please verify manually."</td>
   </tr>
   <tr>
-    <td>No matches across all MCP servers</td>
-    <td>Present 3 closest partial matches with missing constraints highlighted. Offer escalation path.</td>
-    <td>"No exact match. Closest options: [Shelter A] — no pet policy. [Shelter B] — no wheelchair access."</td>
+    <td>No exact matches (strict query)</td>
+    <td><strong>Autonomous constraint relaxation</strong>: Agent drops lowest-priority constraint and re-queries MCP. Only if relaxed query also returns [] does it fallback to partial match UI.</td>
+    <td>"Expanding search to include shelters without pet policy..." → "Found 2 matches with relaxed constraints." OR "No matches found. Closest partial matches below."</td>
   </tr>
   <tr>
     <td><code>lock_resource</code> fails (race condition)</td>
@@ -510,8 +555,8 @@
 
 <pre><code>Tools Exposed:
 • query_shelters(zone, min_capacity, wheelchair, pets, family_units)
-• lock_resource(shelter_id, resource_type, quantity)
-• unlock_resource(shelter_id, resource_type, quantity)
+• lock_resource(shelter_id, resource_type, quantity, initiated_by_user_id)
+• unlock_resource(shelter_id, resource_type, quantity, initiated_by_user_id)
 
 Query Example:
 {
@@ -531,7 +576,8 @@ Lock Example:
 {
   "shelter_id": "rec456",
   "resource_type": "bed",
-  "quantity": 3
+  "quantity": 3,
+  "initiated_by_user_id": "U1234567890"
 }
 </code></pre>
 
@@ -540,8 +586,8 @@ Lock Example:
 
 <pre><code>Tools Exposed:
 • query_transport(zone, vehicle_class, wheelchair, pets, available)
-• lock_resource(volunteer_id, resource_type, status)
-• unlock_resource(volunteer_id, resource_type, status)
+• lock_resource(volunteer_id, resource_type, status, initiated_by_user_id)
+• unlock_resource(volunteer_id, resource_type, status, initiated_by_user_id)
 
 Query Example:
 {
@@ -561,17 +607,21 @@ Lock Example:
 {
   "volunteer_id": "vol_01",
   "resource_type": "status",
-  "status": "On Transport Run"
+  "status": "On Transport Run",
+  "initiated_by_user_id": "U1234567890"
 }
 </code></pre>
 
-<h4>Ontology MCP (Custom FastMCP Server)</h4>
+<h4>Ontology MCP (Custom FastMCP Server) <span class="fix-badge">Fix 4</span></h4>
 <p><strong>Source:</strong> Standalone Python/Node HTTP service built with FastMCP. Not a third-party integration — this is Lifeline's deterministic constraint engine.</p>
+
+<p><strong>Hot-Reload Architecture:</strong> The ontology schema is loaded from <code>ONTOLOGY_CONFIG_PATH</code> (environment variable pointing to a JSON file or a Slack config channel message). For the hackathon, the schema is hardcoded. In production, NGO admins can update constraints via a simple Slack command (e.g., <code>/lifeline-config add-vehicle bariatric_wheelchair 600lbs</code>) or by editing the JSON in <code>#lifeline-admin</code>. The MCP server hot-reloads the schema without restart.</p>
 
 <pre><code>Tools Exposed:
 • evaluate_compatibility(need_profile, vehicle_profile)
 • validate_shelter_capacity(shelter_profile, need_profile)
 • list_constraint_violations(match_candidate)
+• reload_ontology()  // hot-reload from config source
 
 Evaluate Compatibility Example:
 {
@@ -795,8 +845,17 @@ Response:
   "llm_prompt_hash": "sha256:a1b2c3d4...",
   "dispatch": {
     "status": "confirmed",
-    "shelter_lock": { "shelter_id": "rec456", "beds_locked": 3, "remaining": 1 },
-    "transport_lock": { "volunteer_id": "vol_01", "status": "On Transport Run" },
+    "shelter_lock": {
+      "shelter_id": "rec456",
+      "beds_locked": 3,
+      "remaining": 1,
+      "initiated_by_user_id": "U1234567890"
+    },
+    "transport_lock": {
+      "volunteer_id": "vol_01",
+      "status": "On Transport Run",
+      "initiated_by_user_id": "U1234567890"
+    },
     "actor_token": "xoxp-*** (user: U1234567890)"
   }
 }
