@@ -462,6 +462,7 @@
     })
 
   → Dispatcher clicks "✅ Confirm & Send"
+    → Bot extracts user.id = "U1234567890" from block_actions payload
     → mcp.airtable.lock_resource({
         shelter_id: "rec456",
         resource_type: "bed",
@@ -474,8 +475,8 @@
         status: "On Transport Run",
         initiated_by_user_id: "U1234567890"
       })
-    → chat.postMessage(DM to Dave: dispatch details + route)
-    → chat.postMessage(DM to St. Jude's: incoming referral)
+    → Bot sends DM to Dave (as bot) with dispatch details + route
+    → Bot sends DM to St. Jude's (as bot) with incoming referral
     → chat.postMessage(#shelter-ops: "St. Jude's: 3 beds locked. Dave dispatched.")
     → Update Block Kit card in #intake: green checkmark, "Dispatched at 14:32"
     → logToChannel(#lifeline-logs, {
@@ -502,8 +503,8 @@
   </tr>
   <tr>
     <td><strong>Two-Button Approval</strong></td>
-    <td>"Preview Dispatch" → modal review → "Confirm &amp; Send." No single-click execution. Dispatcher sees exactly what will be locked and sent before confirming.</td>
-    <td>Prevents accidental dispatches on mobile devices. Respects the dispatcher's judgment.</td>
+    <td>"Preview Dispatch" → modal review → "Confirm &amp; Send." When the dispatcher clicks confirm, the Bot extracts <code>user.id</code> from the Slack <code>block_actions</code> payload and passes it as <code>initiated_by_user_id</code> to the MCP <code>lock_resource</code> call. No single-click execution. Dispatcher sees exactly what will be locked and sent before confirming.</td>
+    <td>Prevents accidental dispatches on mobile devices. Respects the dispatcher's judgment. Every action is attributable to a specific human without requiring OAuth2 user token management.</td>
   </tr>
   <tr>
     <td><strong>100% Audit Logging</strong></td>
@@ -856,7 +857,8 @@ Response:
       "status": "On Transport Run",
       "initiated_by_user_id": "U1234567890"
     },
-    "actor_token": "xoxp-*** (user: U1234567890)"
+    "initiated_by_user_id": "U1234567890",
+    "actor_type": "bot_with_human_attribution"
   }
 }
 </code></pre>
